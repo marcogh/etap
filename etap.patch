@@ -1,0 +1,481 @@
+diff -uprN -X dontdiff linux-2.6.11.6/net/sched/Kconfig linux-uml/net/sched/Kconfig
+--- linux-2.6.11.6/net/sched/Kconfig	2005-03-30 18:11:30.000000000 +0200
++++ linux-uml/net/sched/Kconfig	2005-03-31 11:43:30.000000000 +0200
+@@ -180,6 +180,12 @@ config NET_SCH_TBF
+ 	  To compile this code as a module, choose M here: the
+ 	  module will be called sch_tbf.
+ 
++config NET_SCH_BUBU
++	tristate "bubu queue"
++	depends on NET_SCHED
++	help
++	  just for fun..
++
+ config NET_SCH_GRED
+ 	tristate "GRED queue"
+ 	depends on NET_SCHED
+diff -uprN -X dontdiff linux-2.6.11.6/net/sched/Makefile linux-uml/net/sched/Makefile
+--- linux-2.6.11.6/net/sched/Makefile	2004-12-24 22:34:45.000000000 +0100
++++ linux-uml/net/sched/Makefile	2005-03-31 11:43:30.000000000 +0200
+@@ -19,6 +19,7 @@ obj-$(CONFIG_NET_SCH_HPFQ)	+= sch_hpfq.o
+ obj-$(CONFIG_NET_SCH_HFSC)	+= sch_hfsc.o
+ obj-$(CONFIG_NET_SCH_RED)	+= sch_red.o
+ obj-$(CONFIG_NET_SCH_GRED)	+= sch_gred.o
++obj-$(CONFIG_NET_SCH_BUBU)	+= sch_bubu.o
+ obj-$(CONFIG_NET_SCH_INGRESS)	+= sch_ingress.o 
+ obj-$(CONFIG_NET_SCH_DSMARK)	+= sch_dsmark.o
+ obj-$(CONFIG_NET_SCH_SFQ)	+= sch_sfq.o
+diff -uprN -X dontdiff linux-2.6.11.6/net/sched/sch_bubu.c linux-uml/net/sched/sch_bubu.c
+--- linux-2.6.11.6/net/sched/sch_bubu.c	1970-01-01 01:00:00.000000000 +0100
++++ linux-uml/net/sched/sch_bubu.c	2005-04-06 17:17:44.000000000 +0200
+@@ -0,0 +1,196 @@
++#include <linux/config.h>
++#include <linux/module.h>
++#include <linux/rtnetlink.h>
++#include <linux/timer.h>
++#include <linux/skbuff.h>
++#include <linux/tcp.h>
++#include <linux/ip.h>
++#include <linux/netfilter_ipv4/ip_conntrack.h>
++#include <net/sock.h>
++#include <net/pkt_sched.h>
++
++MODULE_LICENSE("GPL");
++MODULE_AUTHOR("Marco Ghidinelli <marcogh@linux.it>");
++MODULE_DESCRIPTION("JustForFun");
++
++
++#define CONFIG_NET_SCH_BUBU
++
++struct bubu_sched_data
++{
++	/* char			throttling; */
++	/* psched_time_t		t_c;
++	struct timer_list 	wd_timer; */
++};
++
++void bubu_watchdog(unsigned long arg){
++	/*
++	struct Qdisc *sch = (struct Qdisc*)arg;
++	struct bubu_sched_data *q = qdisc_priv(sch);
++	*/
++	struct sk_buff *skb;
++	struct ip_conntrack *ipct = (struct ip_conntrack*)arg;
++	/* da testare! */
++	struct Qdisc *sch = ipct->bubu.sch;
++	
++	skb = __skb_dequeue(ipct->bubu.q);
++	if(skb == NULL){
++		printk(KERN_DEBUG "Dequeue failed from queue: "
++				"questo e' brutto brutto brutto.\n");
++		return;
++	}
++	netif_schedule(sch->dev);
++	/* }else{
++		skb = __skb_dequeue(&sch->q);
++		if(skb){
++			delay=PSCHED_US2JIFFIE(1000000);
++			mod_timer(&q->wd_timer, jiffies+delay);
++			q->throttling=1;
++			return skb;
++		}
++	} */
++}
++
++static struct sk_buff *
++bubu_dequeue(struct Qdisc* sch)
++{	
++	/* struct 	bubu_sched_data *q = qdisc_priv(sch); */
++	/*struct	sk_buff *skb;
++
++	struct 	ip_conntrack *ipct;
++	enum ip_conntrack_info ctinfo;
++	unsigned long delay; */
++
++	return NULL;
++}
++	
++	/* if(q->throttling)
++		return NULL; */
++	
++/*
++	skb = __skb_dequeue(&sch->q);
++	if(skb){
++		ipct = ip_conntrack_get(skb,&ctinfo); 
++		if(ctinfo > 2){
++			printk(KERN_DEBUG "ctinfo = %d\n",ctinfo);
++			printk(KERN_DEBUG "smss: %d\tsn_max: %d\n"
++					"sn_curr: %d\tduphack: %d\tbr: %d\n",
++				ipct->bubu.smss,
++				ipct->bubu.sn_max,
++				ipct->bubu.sn_curr,
++				ipct->bubu.duphack,
++				ipct->bubu.br);
++			sch->q.qlen--;
++			sch->flags &= ~TCQ_F_THROTTLED;
++
++			delay=PSCHED_US2JIFFIE(100000);
++			mod_timer(&q->wd_timer, jiffies+delay);
++			q->throttling=1;
++*/			
++			/*if(skb->protocol == __constant_htons(ETH_P_IP)){
++				struct iphdr *nhptr = skb->nh.iph;
++				if(nhptr->protocol == IPPROTO_TCP){
++					struct tcphdr *thptr = skb->h.th;
++					printk(
++						KERN_DEBUG
++						"protocol tcp. source: %8x; destination: %8x; seq: %u, window: %u, ack_seq: %u\n",
++						__constant_htonl(nhptr->saddr),
++						__constant_htonl(nhptr->daddr),
++						__constant_htonl(thptr->seq), 
++						__constant_htons(thptr->window), 
++						__constant_htonl(thptr->ack_seq));
++				}
++			} 
++		} else {
++			return skb;
++		}
++	}
++	return NULL;
++
++}
++*/
++static int
++bubu_enqueue(struct sk_buff *skb, struct Qdisc* sch)
++{
++	/* struct bubu_sched_data *q = qdisc_priv(sch); */
++	struct ip_conntrack *ipct;
++	enum ip_conntrack_info ctinfo;
++	unsigned long delay;
++	
++	ipct = ip_conntrack_get(skb,&ctinfo);
++	if(ipct==NULL)
++		return 0;
++	
++	if(ipct->bubu.q->qlen > 0){
++		
++		if(ipct->bubu.q->qlen < sch->dev->tx_queue_len) {
++			__skb_queue_tail(ipct->bubu.q,skb);
++
++			ipct->bubu.q->qlen++;
++			delay=PSCHED_US2JIFFIE(100000);
++			mod_timer(&ipct->bubu.timeout, jiffies+delay);
++			/* ok, throttled. cross your fingers */
++			return 0;
++		}
++		/*sch->qstats.drops++; */
++		kfree_skb(skb);
++		return NET_XMIT_DROP;
++	}
++	__skb_queue_tail(&sch->q,skb);
++	netif_schedule(sch->dev);
++	return 0;
++}
++
++static int
++bubu_requeue(struct sk_buff *skb, struct Qdisc* sch)
++{
++	/* struct bubu_sched_data *q = qdisc_priv(sch); */
++
++	__skb_queue_head(&sch->q,skb);
++	sch->q.qlen++;
++	sch->qstats.requeues++;
++	return 0;
++}
++
++static int bubu_init(struct Qdisc* sch, struct rtattr *opt)
++{
++	struct bubu_sched_data *q = qdisc_priv(sch);
++
++	/* PSCHED_GET_TIME(q->t_c);  */
++	/*init_timer(&q->wd_timer); */
++	/*q->wd_timer.function = bubu_watchdog;
++	q->wd_timer.data = (unsigned long)sch;
++	
++	q->throttling=0; */
++	
++	skb_queue_head_init(&sch->q);
++	printk(KERN_DEBUG "Bubu Scheduler version 0.0.1 inizialized.\nZee German!\n");
++	return 0;
++}
++
++static struct Qdisc_ops bubu_ops = {
++        .next           =       NULL,
++        .cl_ops         =       NULL,
++        .id             =       "bubu",
++        .priv_size      =       sizeof(struct bubu_sched_data),
++        .enqueue        =       bubu_enqueue,
++        .dequeue        =       bubu_dequeue,
++        .requeue        =       bubu_requeue,
++        .init           =       bubu_init,
++        .owner          =       THIS_MODULE,
++};
++
++
++static int __init bubu_module_init(void)
++{
++	return register_qdisc(&bubu_ops);
++}
++static void __exit bubu_module_exit(void)
++{
++	unregister_qdisc(&bubu_ops);
++}
++
++EXPORT_SYMBOL(bubu_watchdog);
++
++module_init(bubu_module_init)
++module_exit(bubu_module_exit)
+diff -uprN -X dontdiff linux-2.6.11.6/net/sched/sch_bubu_ok.c linux-uml/net/sched/sch_bubu_ok.c
+--- linux-2.6.11.6/net/sched/sch_bubu_ok.c	1970-01-01 01:00:00.000000000 +0100
++++ linux-uml/net/sched/sch_bubu_ok.c	2005-03-31 11:43:30.000000000 +0200
+@@ -0,0 +1,112 @@
++#include <linux/module.h>
++#include <linux/rtnetlink.h>
++#include <linux/timer.h>
++#include <linux/skbuff.h>
++#include <linux/tcp.h>
++#include <linux/ip.h>
++#include <net/sock.h>
++#include <net/pkt_sched.h>
++
++struct bubu_sched_data
++{
++	u32		limit;
++	u32		buffer;
++	u32		mtu;
++	u32		max_size;
++
++	struct qdisc_rate_table *R_tab;
++	struct qdisc_rate_table *P_tab;
++	struct timer_list wd_timer;
++	struct Qdisc	*qdisc;
++};
++
++static struct sk_buff *
++bubu_dequeue(struct Qdisc* sch)
++{	
++	struct sk_buff_head *list = qdisc_priv(sch);
++	struct sk_buff *skb;
++	
++	skb = __skb_dequeue(list);
++	if(skb){
++		sch->q.qlen--;
++		if(skb->protocol == __constant_htons(ETH_P_IP)){
++			struct iphdr *nhptr = skb->nh.iph;
++			if(nhptr->protocol == IPPROTO_TCP){
++				struct tcphdr *thptr = skb->h.th;
++				printk(
++					KERN_DEBUG
++					"protocol tcp. source: %8x; destination: %8x; seq: %u, window: %u, ack_seq: %u\n",
++					__constant_htonl(nhptr->saddr),
++					__constant_htonl(nhptr->daddr),
++					__constant_htonl(thptr->seq), 
++					__constant_htons(thptr->window), 
++					__constant_htonl(thptr->ack_seq));
++			}
++		}
++		return skb;
++	}
++	return NULL;
++}
++
++static int
++bubu_enqueue(struct sk_buff *skb, struct Qdisc* sch)
++{
++	struct sk_buff_head *list = qdisc_priv(sch);
++	
++	if(list->qlen < sch->dev->tx_queue_len) {
++		__skb_queue_tail(list,skb);
++		sch->q.qlen++;
++		sch->bstats.bytes += skb->len;
++		sch->bstats.packets++;
++		return 0;
++	}
++	sch->qstats.drops++;
++	kfree_skb(skb);
++	return NET_XMIT_DROP;
++}
++
++static int
++bubu_requeue(struct sk_buff *skb, struct Qdisc* sch)
++{
++	struct sk_buff_head *list = qdisc_priv(sch);
++
++	__skb_queue_head(list,skb);
++	sch->q.qlen++;
++	sch->qstats.requeues++;
++	return 0;
++}
++
++static int bubu_init(struct Qdisc* sch, struct rtattr *opt)
++{
++	/* struct bubu_sched_data *q = qdisc_priv(sch); */
++	struct sk_buff_head *list = qdisc_priv(sch);
++	skb_queue_head_init(list);
++	printk(KERN_DEBUG "Bubu Scheduler inizialized.\nZee German!\n");
++	return 0;
++}
++
++static struct Qdisc_ops bubu_ops = {
++        .next           =       NULL,
++        .cl_ops         =       NULL,
++        .id             =       "bubu",
++        .priv_size      =       sizeof(struct sk_buff_head),
++        .enqueue        =       bubu_enqueue,
++        .dequeue        =       bubu_dequeue,
++        .requeue        =       bubu_requeue,
++        .init           =       bubu_init,
++        .owner          =       THIS_MODULE,
++};
++
++
++static int __init bubu_module_init(void)
++{
++	return register_qdisc(&bubu_ops);
++}
++static void __exit bubu_module_exit(void)
++{
++	unregister_qdisc(&bubu_ops);
++}
++
++module_init(bubu_module_init)
++module_exit(bubu_module_exit)
++MODULE_LICENSE("GPL");
+diff -uprN -X dontdiff linux-2.6.11.6/net/sched/sch_gh.c linux-uml/net/sched/sch_gh.c
+--- linux-2.6.11.6/net/sched/sch_gh.c	1970-01-01 01:00:00.000000000 +0100
++++ linux-uml/net/sched/sch_gh.c	2005-03-31 11:43:30.000000000 +0200
+@@ -0,0 +1,134 @@
++#include <linux/module.h>
++#include <linux/rtnetlink.h>
++#include <linux/timer.h>
++#include <net/sock.h>
++#include <net/pkt_sched.h>
++
++struct gh_sched_data
++{
++	u32			limit;
++	struct timer_list 	wd_timer;
++	struct Qdisc		*qdisc;
++};
++
++static struct sk_buff *
++/* gh_DEqueue??? */
++gh_dequeue(struct Qdisc* sch)
++{	
++	struct gh_sched_data *q = qdisc_priv(sch);
++	struct sk_buff *skb;
++
++	skb = q->qdisc->dequeue(q->qdisc);
++	
++	if(skb){
++		psched_time_t now;
++		unsigned int len = skb->len;
++
++		PSCHED_GET_TIME(now);
++		if(PSCHED_TLESS(now,q->wd_timer)){
++			/* non e' passato ancora abbastanza tempo */
++			if((q->qdisc->ops->requeue(skb,q->qdisc) != NET_XMIT_SUCCESS)){
++				sch->q.len--;
++				sch->qstats.drops++;
++			}
++			return NULL;
++		}
++		sch->flags |= TCQ_F_THROTTLED;
++		sch->qstats.overlimits++;
++	}
++	return NULL;
++}
++
++void blablabla(){
++	long delay = 0;
++	/* se non ci sono pacchetti in coda lo manda subito */
++	if(list->qlen == 0){
++		/* se non ci sono pacchetti in coda lo manda subito */
++	
++	}else{
++		/* devo implementare un timeout */
++		list->delay_timer.expires = blablabla;
++		add_timer(&list->delay_timer);
++		
++	}
++	/* ed eventualmente ritorno NULL, che significa che non ho nulla 
++	 * da inivare al momento */
++}
++
++static int
++gh_enqueue(sk_buff * blabalbla, struct Qdisc* sch)
++{
++	if(list->qlen < qdisc->dev->tx_queue-len) {
++		__skb_queue_tail(list,skb);
++		qdisc->q.qlen++;
++		qdisc->bstats.bytes += skb->len;
++		qdisc->bstats.packets++;
++		return 0; /* packed enquequed sucsessfully */
++	}
++	qdisc->qstats.drops++;
++	kfree_skb(skb);
++	return NET_XMIT_DROP; 
++}
++
++static int
++gh_requeue(struct sk_buff *skb, struct Qdisc* sch)
++{
++	return 0;
++}
++
++static void
++gh_reset(struct Qdisc* sch)
++{
++
++}
++
++static int gh_dump(struct Qdisc* sch, struct sk_buff *skb)
++{
++	return 0;
++}
++
++static int gh_init(struct Qdisc* sch, struct rtattr *opt)
++{
++	struct gh_sched_data *q = qdisc_priv(sch);
++
++	if(opt != NULL)
++		return -EINVAL;
++
++	init_timer(&q->wd_timer);
++	q->wd_timer.function = gh_watchdog;
++	q->wd_timer.data = (unsigned long)sch;
++
++	q->qdisc = &noop_qdisc;
++}
++
++static struct Qdisc_ops gh_qdisc_ops = {
++        .next           =       NULL,
++        .cl_ops         =       NULL,
++        .id             =       "gh",
++        .priv_size      =       sizeof(struct gh_sched_data),
++        .enqueue        =       gh_enqueue,
++        .dequeue        =       gh_dequeue,
++        .requeue        =       gh_requeue,
++        .drop           =       NULL,
++        .init           =       gh_init,
++        .reset          =       NULL,
++        .destroy        =       NULL,
++        .change         =       NULL,
++        .dump           =       NULL,
++        .dump_stats     =       NULL,
++        .owner          =       THIS_MODULE,
++};
++
++
++static int __init gh_module_init(void)
++{
++	return register_qdisc(&gh_qdisc_ops);
++}
++static void __exit gh_module_exit(void)
++{
++	unregister_qdisc(&gh_qdisc_ops);
++}
++
++module_init(gh_module_init)
++module_exit(gh_module_exit)
++MODULE_LICENSE("GPL");
